@@ -292,20 +292,44 @@ def get_visualization_data():
         current_year = datetime.now().year
         citations_over_time = {str(year): random.randint(50, 200) for year in range(current_year-5, current_year+1)}
         
-        # Citations vs Publication Year
-        citations_vs_year = [{'x': article.publication_date.year if article.publication_date else 0, 
-                              'y': random.randint(0, 50)} for article in articles]
+        # Collaboration network (simulated data)
+        authors = set()
+        for article in articles:
+            authors.update(article.authors.split(', '))
         
-        # Research Impact (simulated data)
-        research_impact = [{'x': random.randint(0, 100), 'y': random.randint(0, 100), 'r': random.randint(5, 25)} 
-                           for _ in range(20)]
+        nodes = [{"id": author, "group": random.randint(1, 5)} for author in authors]
+        links = []
+        for _ in range(min(len(nodes) * 2, 100)):  # Create some random links
+            source = random.choice(nodes)["id"]
+            target = random.choice(nodes)["id"]
+            if source != target:
+                links.append({"source": source, "target": target})
+        
+        collaboration_network = {"nodes": nodes, "links": links}
+        
+        # Research Impact vs. Publication Year (simulated data)
+        research_impact = [
+            {"x": article.publication_date.year if article.publication_date else random.randint(current_year-10, current_year), 
+             "y": random.uniform(0, 10)}  # Impact factor between 0 and 10
+            for article in articles
+        ]
+        
+        # Top Authors by Citation Count (simulated data)
+        author_citations = defaultdict(int)
+        for article in articles:
+            for author in article.authors.split(', '):
+                author_citations[author] += random.randint(0, 100)  # Random citation count
+        
+        top_authors = sorted(author_citations.items(), key=lambda x: x[1], reverse=True)[:10]
+        top_authors_data = [{"name": author, "citations": citations} for author, citations in top_authors]
         
         return jsonify({
             'publicationsPerMonth': dict(pub_per_month),
             'researchTopics': {'labels': top_topics, 'data': topic_counts},
             'citationsOverTime': citations_over_time,
-            'citationsVsYear': citations_vs_year,
-            'researchImpact': research_impact
+            'collaborationNetwork': collaboration_network,
+            'researchImpact': research_impact,
+            'topAuthors': top_authors_data
         }), 200
     except Exception as e:
         logger.exception("An error occurred while fetching visualization data: %s", str(e))

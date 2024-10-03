@@ -9,14 +9,23 @@
   import { Input } from '@/components/ui/input';
   import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
   import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-  import { SearchIcon, StarIcon, UsersIcon, BookOpenIcon, ChevronRightIcon } from 'lucide-react';
+  import { SearchIcon, StarIcon, UsersIcon, BookOpenIcon, ChevronRightIcon, Settings, ChevronDown } from 'lucide-react';
   import { useTheme } from 'next-themes';
   import axios from 'axios';
   import { ForceGraph2D } from 'react-force-graph';
-  import { Bar, Doughnut, Line, Radar, Scatter, Bubble } from 'react-chartjs-2';
-  import { Chart as ChartJS, CategoryScale, LinearScale, BarElement, Title, Tooltip, Legend, ArcElement, PointElement, LineElement, RadialLinearScale } from 'chart.js';
-  // Comment out this line
-  // import { Switch } from '@/components/ui/switch';
+  import { Doughnut, Line, Scatter, Bar } from 'react-chartjs-2';
+  import { Chart as ChartJS, ArcElement, Tooltip, Legend, CategoryScale, LinearScale, PointElement, LineElement, BarElement } from 'chart.js';
+  import {
+    DropdownMenu,
+    DropdownMenuContent,
+    DropdownMenuItem,
+    DropdownMenuLabel,
+    DropdownMenuSeparator,
+    DropdownMenuTrigger,
+  } from "@/components/ui/dropdown-menu";
+  import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+
+  ChartJS.register(ArcElement, Tooltip, Legend, CategoryScale, LinearScale, PointElement, LineElement, BarElement);
 
   type Article = {
     id: string;
@@ -38,6 +47,12 @@
     ssr: false,
     loading: () => <p>Loading visualization...</p>
   });
+
+  // Move handleNodeClick outside of the component
+  const handleNodeClick = (node: any) => {
+    // You can add functionality here, like showing more info about the author
+    console.log(node);
+  };
 
   const RecommendationsTab = () => {
     const [recommendations, setRecommendations] = useState<any[]>([]);
@@ -111,8 +126,6 @@
     const { theme, setTheme } = useTheme();
     const [error, setError] = useState<string | null>(null);
     const [databaseStatus, setDatabaseStatus] = useState<string>('');
-    // Comment out this line
-    // const [useMockData, setUseMockData] = useState(false);
 
     const fetchArticles = useCallback(async () => {
       setIsLoading(true);
@@ -305,18 +318,10 @@
         return <div>Loading...</div>;
       }
 
-      const barChartData = {
-        labels: Object.keys(chartData.publicationsPerMonth),
-        datasets: [{
-          label: 'Publications per Month',
-          data: Object.values(chartData.publicationsPerMonth),
-          backgroundColor: 'rgba(75, 192, 192, 0.6)',
-        }],
-      };
-
-      const doughnutChartData = {
+      const trendingTopicsData = {
         labels: chartData.researchTopics.labels,
         datasets: [{
+          label: 'Trending Topics',
           data: chartData.researchTopics.data,
           backgroundColor: [
             'rgba(255, 99, 132, 0.8)',
@@ -328,7 +333,7 @@
         }],
       };
 
-      const lineChartData = {
+      const citationsOverTimeData = {
         labels: Object.keys(chartData.citationsOverTime),
         datasets: [{
           label: 'Citations Over Time',
@@ -339,41 +344,25 @@
         }],
       };
 
-      const scatterChartData = {
+      const collaborationNetworkData = {
+        nodes: chartData.collaborationNetwork.nodes,
+        links: chartData.collaborationNetwork.links,
+      };
+
+      const researchImpactData = {
         datasets: [{
-          label: 'Citations vs. Publication Year',
-          data: chartData.citationsVsYear,
+          label: 'Research Impact vs. Publication Year',
+          data: chartData.researchImpact,
           backgroundColor: 'rgba(75, 192, 192, 0.6)',
         }],
       };
 
-      const bubbleChartData = {
+      const topAuthorsData = {
+        labels: chartData.topAuthors.map((author: any) => author.name),
         datasets: [{
-          label: 'Research Impact',
-          data: chartData.researchImpact,
-          backgroundColor: 'rgba(255, 99, 132, 0.6)',
-        }],
-      };
-
-      // Register ChartJS components
-      ChartJS.register(
-        CategoryScale, LinearScale, BarElement, Title, Tooltip, Legend,
-        ArcElement, PointElement, LineElement, RadialLinearScale
-      );
-
-      // Sample data for charts
-      const radarChartData = {
-        labels: ['Theory', 'Application', 'Methodology', 'Experiments', 'Results'],
-        datasets: [{
-          label: 'Paper Focus Areas',
-          data: [65, 59, 90, 81, 56],
-          fill: true,
-          backgroundColor: 'rgba(255, 99, 132, 0.2)',
-          borderColor: 'rgb(255, 99, 132)',
-          pointBackgroundColor: 'rgb(255, 99, 132)',
-          pointBorderColor: '#fff',
-          pointHoverBackgroundColor: '#fff',
-          pointHoverBorderColor: 'rgb(255, 99, 132)',
+          label: 'Citation Count',
+          data: chartData.topAuthors.map((author: any) => author.citations),
+          backgroundColor: 'rgba(153, 102, 255, 0.6)',
         }],
       };
 
@@ -387,77 +376,122 @@
           },
           title: {
             display: true,
-            text: 'Chart Title',
+            text: 'Research Insights',
           },
         },
+      };
+
+      const scatterOptions = {
+        ...chartOptions,
+        scales: {
+          x: {
+            type: 'linear' as const,
+            position: 'bottom' as const,
+            title: {
+              display: true,
+              text: 'Publication Year'
+            }
+          },
+          y: {
+            title: {
+              display: true,
+              text: 'Impact Factor'
+            }
+          }
+        }
+      };
+
+      const barOptions = {
+        ...chartOptions,
+        indexAxis: 'y' as const,
+        scales: {
+          x: {
+            title: {
+              display: true,
+              text: 'Citation Count'
+            }
+          }
+        }
       };
 
       return (
         <Card className="p-4">
           <CardHeader>
             <CardTitle>Research Visualization Dashboard</CardTitle>
-            <CardDescription>Explore various insights from the research data</CardDescription>
+            <CardDescription>Key insights to optimize your research workflow</CardDescription>
           </CardHeader>
           <CardContent>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <Card className="col-span-1 h-[300px]">
                 <CardHeader>
-                  <CardTitle>Research Topics Distribution</CardTitle>
+                  <CardTitle>Trending Research Topics</CardTitle>
                 </CardHeader>
                 <CardContent>
-                  <Doughnut data={doughnutChartData} options={chartOptions} />
+                  <Doughnut data={trendingTopicsData} options={chartOptions} />
                 </CardContent>
               </Card>
               
               <Card className="col-span-1 h-[300px]">
                 <CardHeader>
-                  <CardTitle>Paper Focus Areas</CardTitle>
+                  <CardTitle>Citations Impact Over Time</CardTitle>
                 </CardHeader>
                 <CardContent>
-                  <Radar data={radarChartData} options={chartOptions} />
+                  <Line data={citationsOverTimeData} options={chartOptions} />
                 </CardContent>
               </Card>
               
               <Card className="col-span-1 h-[300px]">
                 <CardHeader>
-                  <CardTitle>Publications per Month</CardTitle>
+                  <CardTitle>Research Impact vs. Publication Year</CardTitle>
                 </CardHeader>
                 <CardContent>
-                  <Bar data={barChartData} options={chartOptions} />
-                </CardContent>
-              </Card>
-              
-              <Card className="col-span-1 md:col-span-2 lg:col-span-3 h-[300px]">
-                <CardHeader>
-                  <CardTitle>Citations Over Time</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <Line data={lineChartData} options={chartOptions} />
-                </CardContent>
-              </Card>
-
-              <Card className="col-span-1 md:col-span-2 h-[300px]">
-                <CardHeader>
-                  <CardTitle>Citations vs. Publication Year</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <Scatter data={scatterChartData} options={chartOptions} />
+                  <Scatter data={researchImpactData} options={scatterOptions} />
                 </CardContent>
               </Card>
 
               <Card className="col-span-1 h-[300px]">
                 <CardHeader>
-                  <CardTitle>Research Impact</CardTitle>
+                  <CardTitle>Top Authors by Citation Count</CardTitle>
                 </CardHeader>
                 <CardContent>
-                  <Bubble data={bubbleChartData} options={chartOptions} />
+                  <Bar data={topAuthorsData} options={barOptions} />
+                </CardContent>
+              </Card>
+              
+              <Card className="col-span-1 md:col-span-2 h-[400px]">
+                <CardHeader>
+                  <CardTitle>Collaboration Network</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <DynamicForceGraph2D
+                    graphData={collaborationNetworkData}
+                    nodeLabel="id"
+                    nodeAutoColorBy="group"
+                    linkDirectionalParticles={2}
+                    nodeCanvasObject={(node: any, ctx: CanvasRenderingContext2D, globalScale: number) => {
+                      const label = node.id as string;
+                      const fontSize = 12/globalScale;
+                      ctx.font = `${fontSize}px Sans-Serif`;
+                      const textWidth = ctx.measureText(label).width;
+                      const bckgDimensions = [textWidth, fontSize].map(n => n + fontSize * 0.2);
+
+                      ctx.fillStyle = 'rgba(255, 255, 255, 0.8)';
+                      ctx.fillRect(node.x - bckgDimensions[0] / 2, node.y - bckgDimensions[1] / 2, bckgDimensions[0], bckgDimensions[1]);
+
+                      ctx.textAlign = 'center';
+                      ctx.textBaseline = 'middle';
+                      ctx.fillStyle = node.color as string;
+                      ctx.fillText(label, node.x, node.y);
+                    }}
+                    onNodeClick={handleNodeClick}
+                  />
                 </CardContent>
               </Card>
             </div>
 
             <Card className="mt-8">
               <CardHeader>
-                <CardTitle>AI-Driven Insights and Recommendations</CardTitle>
+                <CardTitle>AI-Driven Research Insights</CardTitle>
               </CardHeader>
               <CardContent>
                 <ul className="list-disc pl-5 space-y-2">
@@ -477,38 +511,49 @@
         <div className="container mx-auto p-4 sm:p-6 md:p-8">
           <header className="mb-8">
             <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-              <h1 className="text-3xl sm:text-4xl font-bold text-primary">ML Mining Research Platform</h1>
-              <div className="flex flex-wrap gap-2 mb-4">
-                <Button onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')} variant="outline">
-                  Toggle Theme
-                </Button>
-                <Button onClick={triggerArxivFetch} variant="default">
-                  Fetch New Papers
-                </Button>
-                <Button onClick={checkDatabaseStatus} variant="default">
-                  Check Database Status
-                </Button>
-                <Button onClick={populateSampleData} variant="default">
-                  Populate Sample Data
-                </Button>
-              </div>
+              <h1 className="text-3xl sm:text-4xl font-bold text-primary">Платформа исследований ML в горном деле</h1>
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="outline" className="flex items-center gap-2">
+                    <Settings className="h-5 w-5" />
+                    Настройки
+                    <ChevronDown className="h-4 w-4" />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent className="w-56">
+                  <DropdownMenuLabel>Настройки приложения</DropdownMenuLabel>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}>
+                    Переключить тему
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={triggerArxivFetch}>
+                    Загрузить новые статьи
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={checkDatabaseStatus}>
+                    Проверить статус базы данных
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={populateSampleData}>
+                    Заполнить примерными данными
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
             </div>
-            <p className="text-xl text-muted-foreground mt-2">Discover, analyze, and collaborate on cutting-edge ML research in mining</p>
+            <p className="text-xl text-muted-foreground mt-2">Открывайте, анализируйте и сотрудничайте в передовых исследованиях ML в горном деле</p>
           </header>
           
           <form onSubmit={handleSearch} className="mb-6">
             <div className="flex space-x-2">
               <Input
                 type="search"
-                placeholder="Search articles..."
+                placeholder="Поиск статей..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 className="flex-grow text-lg"
-                aria-label="Search articles"
+                aria-label="Поиск статей"
               />
               <Button type="submit" size="lg" className="bg-primary text-primary-foreground hover:bg-primary/90">
                 <SearchIcon className="h-5 w-5 mr-2" />
-                Search
+                Поиск
               </Button>
             </div>
           </form>
@@ -517,38 +562,27 @@
             <p className="text-sm text-muted-foreground mb-4">{databaseStatus}</p>
           )}
 
-          {/* Comment out this block
-          <div className="flex items-center space-x-2 mb-4">
-            <Switch
-              id="use-mock-data"
-              checked={useMockData}
-              onCheckedChange={setUseMockData}
-            />
-            <label htmlFor="use-mock-data">Use mock data for visualization</label>
-          </div>
-          */}
-
           <Tabs defaultValue="articles" onValueChange={setActiveTab} className="space-y-4">
             <TabsList className="grid w-full grid-cols-5 gap-4">
               <TabsTrigger value="articles" className="text-lg">
                 <BookOpenIcon className="h-5 w-5 mr-2" />
-                Articles
+                Статьи
               </TabsTrigger>
               <TabsTrigger value="visualization" className="text-lg">
                 <SearchIcon className="h-5 w-5 mr-2" />
-                Visualization
+                Визуализация
               </TabsTrigger>
               <TabsTrigger value="recommendations" className="text-lg">
                 <StarIcon className="h-5 w-5 mr-2" />
-                Recommendations
+                Рекомендации
               </TabsTrigger>
               <TabsTrigger value="collection" className="text-lg">
                 <UsersIcon className="h-5 w-5 mr-2" />
-                Collection
+                Коллекция
               </TabsTrigger>
               <TabsTrigger value="ai-insights" className="text-lg">
                 <ChevronRightIcon className="h-5 w-5 mr-2" />
-                AI Insights
+                ИИ-аналитика
               </TabsTrigger>
             </TabsList>
 
@@ -593,7 +627,7 @@
                 </TabsContent>
 
                 <TabsContent value="collection">
-                  <h2 className="text-2xl font-bold mb-4 text-primary">Your Collection</h2>
+                  <h2 className="text-2xl font-bold mb-4 text-primary">Ваша коллекция</h2>
                   {collaborativeCollection.map(article => (
                     <motion.div
                       key={article.id}
@@ -634,7 +668,7 @@
 
           {error && (
             <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded relative mb-4" role="alert">
-              <strong className="font-bold">Error!</strong>
+              <strong className="font-bold">Ошибка!</strong>
               <span className="block sm:inline"> {error}</span>
             </div>
           )}
